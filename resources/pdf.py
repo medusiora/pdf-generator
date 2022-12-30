@@ -3,7 +3,10 @@ import re
 import weasyprint
 from flask import Blueprint, abort, make_response, request
 
+from logging_config import logger
+
 pdf_api = Blueprint('pdf_api', __name__)
+
 
 # Regex pattern for validating filenames
 FILENAME_PATTERN = r'^[\w\-. ]+$'
@@ -54,7 +57,10 @@ def convert_to_pdf():
         response.headers['Content-Disposition'] = 'attachment; filename={}.pdf'.format(
             filename)
 
+        logger.info('Converted HTML to PDF')
+
         return response
 
     except Exception as e:
+        logger.error('Error converting HTML to PDF: {}'.format(str(e)))
         abort(500, 'Error converting HTML to PDF: {}'.format(str(e)))
