@@ -2,6 +2,8 @@
 
 API Service to generate PDF from HTML using Python + WeasyPrint
 
+Original Dockerfile from [docker-weasyprint](https://github.com/aquavitae/docker-weasyprint)
+
 ## Requirements
 
 Python 3 https://www.python.org/downloads/
