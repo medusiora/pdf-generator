@@ -8,6 +8,16 @@ Python 3 https://www.python.org/downloads/
 
 WeasyPrint Installation Guild https://doc.courtbouillon.org/weasyprint/stable/first_steps.html#installation
 
+## Docker
+
+Run the docker image, exposing port 5001
+
+```
+$ docker build -t pdf-generator-api:latest .
+
+$ docker run -p 5001:5001 pdf-generator-api:latest
+```
+
 ## Window
 
 #### Installing and using virtualenv
