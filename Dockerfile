@@ -25,7 +25,7 @@ RUN python3 -m venv /opt/weasyprint && \
   . ./bin/activate && \
   pip3 install --upgrade pip && \
   pip3 install wheel && \
-  pip3 install WeasyPrint gunicorn flask
+  pip3 install -r requirements.txt
 
 COPY *.py ./
 COPY ./resources ./resources
