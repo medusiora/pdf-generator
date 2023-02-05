@@ -62,10 +62,13 @@ def convert_to_pdf():
         response.headers['Content-Disposition'] = 'attachment; filename={}.pdf'.format(
             filename)
 
-        logger.info('Converted HTML to PDF')
+        logger.info('Converted HTML to PDF from IP: {}'.format(
+            request.remote_addr))
 
         return response
 
     except Exception as e:
-        logger.error('Error converting HTML to PDF: {}'.format(str(e)))
+        # add ip address to log
+        logger.error('Error converting HTML to PDF from IP: {}, Reason {}'.format(
+            request.remote_addr, str(e)))
         return jsonify({'error': 'Error converting HTML to PDF: {}'.format(str(e))}), 500
