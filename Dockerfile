@@ -21,6 +21,8 @@ EXPOSE 5001
 
 WORKDIR /opt/weasyprint
 
+COPY requirements.txt ./
+
 RUN python3 -m venv /opt/weasyprint && \
   . ./bin/activate && \
   pip3 install --upgrade pip && \
@@ -28,10 +30,10 @@ RUN python3 -m venv /opt/weasyprint && \
   pip3 install -r requirements.txt
 
 COPY *.py ./
-COPY ./resources ./resources
-COPY ./templates ./templates
-COPY ./static ./static
-COPY ./middleware ./middleware
+COPY resources ./resources
+COPY templates ./templates
+COPY static ./static
+COPY middleware ./middleware
 
 ENTRYPOINT ["dumb-init", "--"]
 CMD ["/bin/bash", "-c", ". ./bin/activate && gunicorn --bind 0.0.0.0:5001 --timeout 90 --graceful-timeout 60 app:app"]
