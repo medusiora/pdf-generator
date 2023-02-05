@@ -1,9 +1,10 @@
 import re
 
 import weasyprint
-from flask import Blueprint, abort, make_response, request
+from flask import Blueprint, jsonify, make_response, request
 
 from logging_config import logger
+from middleware.auth import verify_api_key
 
 pdf_api = Blueprint('pdf_api', __name__)
 
@@ -20,12 +21,16 @@ def validate_filename(filename: str) -> bool:
 
 
 @pdf_api.route('/api/convert-to-pdf', methods=['POST'])
+@verify_api_key
 def convert_to_pdf():
     """
     Converts HTML to PDF and returns the PDF as a response
 
     Note:
         Use @page css to set the page size and orientation
+
+    Request headers:
+        API-key (str): The API key to use for authentication
 
     Request data:
         html (str): The HTML data to be converted
@@ -35,7 +40,7 @@ def convert_to_pdf():
         A response with the PDF data and the appropriate Content-Type and Content-Disposition headers
     """
     if not request.is_json:
-        abort(400, 'No JSON data provided')
+        return jsonify({'error': 'No JSON data provided'}), 400
 
     # Get the HTML data and filename from the request
     data = request.get_json(silent=True)
@@ -43,9 +48,9 @@ def convert_to_pdf():
     filename = data.get('filename', 'converted')
 
     if not html:
-        abort(400, 'No HTML data provided')
+        return jsonify({'error': 'No HTML data provided'}), 400
     if not validate_filename(filename):
-        abort(400, 'Invalid filename')
+        return jsonify({'error': 'Invalid filename'}), 400
 
     try:
         # Convert the HTML to PDF
@@ -63,4 +68,4 @@ def convert_to_pdf():
 
     except Exception as e:
         logger.error('Error converting HTML to PDF: {}'.format(str(e)))
-        abort(500, 'Error converting HTML to PDF: {}'.format(str(e)))
+        return jsonify({'error': 'Error converting HTML to PDF: {}'.format(str(e))}), 500
