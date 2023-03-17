@@ -54,7 +54,9 @@ def convert_to_pdf():
 
     try:
         # Convert the HTML to PDF
-        pdf = weasyprint.HTML(string=html).write_pdf()
+        pdf = weasyprint.HTML(string=html).write_pdf(
+            optimize_size=('fonts', 'images')
+        )
 
         # Create a response with the PDF data
         response = make_response(pdf)
