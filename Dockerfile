@@ -14,6 +14,7 @@ RUN apt-get update \
       uwsgi-plugin-python3 \
       dumb-init \
       curl \
+      ghostscript \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
@@ -37,4 +38,3 @@ COPY middleware ./middleware
 
 ENTRYPOINT ["dumb-init", "--"]
 CMD ["/bin/bash", "-c", ". ./bin/activate && gunicorn --bind 0.0.0.0:5001 --timeout 90 --graceful-timeout 60 app:app"]
-
