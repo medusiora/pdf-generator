@@ -1,5 +1,6 @@
 import os
 import re
+import shutil
 import subprocess
 
 import weasyprint
@@ -10,7 +11,6 @@ from middleware.auth import verify_api_key
 
 pdf_api = Blueprint('pdf_api', __name__)
 
-
 # Regex pattern for validating filenames
 FILENAME_PATTERN = r'^[\w\-. ]+$'
 
@@ -20,6 +20,79 @@ def validate_filename(filename: str) -> bool:
     Validates a filename for use in the Content-Disposition header
     """
     return bool(re.fullmatch(FILENAME_PATTERN, filename))
+
+
+def sanitize_html(html: str) -> str:
+    """
+    Sanitizes HTML to prevent XSS attacks
+    """
+    from bs4 import BeautifulSoup
+
+    soup = BeautifulSoup(html, 'html.parser')
+    return str(soup)
+
+
+def get_ghostscript_path():
+    gs_names = ['gs', 'gswin32c', 'gswin64c']
+
+    for gs_name in gs_names:
+        try:
+            gs_path = shutil.which(gs_name)
+            if gs_path:
+                return gs_path
+        except Exception:
+            pass
+
+    raise Exception('GhostScript not found')
+
+
+def compress_pdf(pdf: bytes, power=0) -> bytes:
+    """
+    Compresses a PDF using GhostScript
+
+    Args:
+        pdf (bytes): The PDF data to compress
+
+    Returns:
+        The compressed PDF data
+    """
+
+    quality = {
+        0: '/default',
+        1: '/prepress',
+        2: '/printer',
+        3: '/ebook',
+        4: '/screen'
+    }
+
+    gs_path = get_ghostscript_path()
+
+    # Create a temporary file to store the PDF data
+    with open('temp.pdf', 'wb') as f:
+        f.write(pdf)
+
+    # Compress the PDF using GhostScript
+    subprocess.run([
+        gs_path,
+        '-sDEVICE=pdfwrite',
+        '-dCompatibilityLevel=1.4',
+        '-dPDFSETTINGS={}'.format(quality[power]),
+        '-dNOPAUSE',
+        '-dQUIET',
+        '-dBATCH',
+        '-sOutputFile=temp-compressed.pdf',
+        'temp.pdf',
+    ])
+
+    # Read the compressed PDF data
+    with open('temp-compressed.pdf', 'rb') as f:
+        compressed_pdf = f.read()
+
+    # Delete the temporary files
+    os.remove('temp.pdf')
+    os.remove('temp-compressed.pdf')
+
+    return compressed_pdf
 
 
 @pdf_api.route('/api/convert-to-pdf', methods=['POST'])
@@ -51,8 +124,13 @@ def convert_to_pdf():
 
     if not html:
         return jsonify({'error': 'No HTML data provided'}), 400
+
+    # Validate the filename
     if not validate_filename(filename):
         return jsonify({'error': 'Invalid filename'}), 400
+
+    # Sanitize the HTML to prevent XSS attacks
+    html = sanitize_html(html)
 
     try:
         # Convert the HTML to PDF
@@ -60,32 +138,13 @@ def convert_to_pdf():
             optimize_size=('fonts', 'images'),
         )
 
-        # Write the PDF to a file
-        with open('temp.pdf', 'wb') as f:
-            f.write(pdf)
-
-        # if windows use gswin64c.exe instead of gs
-        gs = 'gs'
-        if os.name == 'nt':
-            gs = 'gswin64c.exe'
-
-        # Compress the PDF using Ghostscript
-        subprocess.run([gs, '-sDEVICE=pdfwrite', '-dCompatibilityLevel=1.4',
-                        '-dPDFSETTINGS=/screen', '-dNOPAUSE', '-dQUIET', '-dBATCH',
-                        '-sOutputFile={}.pdf'.format(filename), 'temp.pdf'])
-
-        # Read the compressed PDF file
-        with open('{}.pdf'.format(filename), 'rb') as f:
-            compressed_pdf = f.read()
-
-        # Remove the temporary and compressed files
-        os.remove('temp.pdf')
-        os.remove('{}.pdf'.format(filename))
+        # Compress the PDF
+        pdf = compress_pdf(pdf, power=4)
 
         # Create a response with the compressed PDF data
-        response = make_response(compressed_pdf)
+        response = make_response(pdf)
         response.headers['Content-Type'] = 'application/pdf'
-        response.headers['Content-Disposition'] = 'attachment; filename={}.pdf'.format(
+        response.headers['Content-Disposition'] = 'attachment; filename="{}.pdf"'.format(
             filename)
 
         logger.info('Converted HTML to PDF from IP: {}'.format(
