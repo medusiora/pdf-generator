@@ -47,7 +47,7 @@ def get_ghostscript_path():
     raise Exception('GhostScript not found')
 
 
-def compress_pdf(pdf: bytes, power=0) -> bytes:
+def compress_pdf(pdf: bytes, power=0, resolution=300) -> bytes:
     """
     Compresses a PDF using GhostScript
 
@@ -82,12 +82,10 @@ def compress_pdf(pdf: bytes, power=0) -> bytes:
         '-sDEVICE=pdfwrite',
         '-dCompatibilityLevel=1.4',
         '-dPDFSETTINGS={}'.format(quality[power]),
-        '-dColorImageDownsampleType=/Bicubic',
-        '-dColorImageResolution=300',
-        '-dGrayImageDownsampleType=/Bicubic',
-        '-dGrayImageResolution=300',
-        '-dMonoImageDownsampleType=/Subsample',
-        '-dMonoImageResolution=300',
+        '-dDetectDuplicateImages=true',
+        '-dDownsampleColorImages=true -dDownsampleGrayImages=true -dDownsampleMonoImages=true',
+        '-dColorImageResolution={} -dGrayImageResolution={} -dMonoImageResolution={}'.format(
+            resolution, resolution, resolution),
         '-dNOPAUSE',
         '-dQUIET',
         '-dBATCH',
@@ -102,7 +100,8 @@ def compress_pdf(pdf: bytes, power=0) -> bytes:
     print('---------------------------------------------------------')
     print(temp_name)
     print(temp_compressed_name)
-    print('Compression power: {} - {}'.format(power, quality[power]))
+    print('Compression power: {} - {} Resolution {}'.format(power,
+          quality[power], resolution))
     print('Compressed PDF size: {} KB'.format(len(compressed_pdf) / 1024))
     print('Original PDF size: {} KB'.format(len(pdf) / 1024))
     print('Compression ratio: {}%'.format(
@@ -209,6 +208,7 @@ def convert_to_pdf_v2():
         html (str): The HTML data to be converted
         filename (str, optional): The filename to use for the PDF (default: "converted")
         power (int, optional): The compression power to use (default: 4) (0: /default, 1: /prepress, 2: /printer, 3: /ebook, 4: /screen)
+        resolution (int, optional): The resolution to use for images (default: 300)
 
     Returns:
         A response with the compressed PDF data and the appropriate Content-Type and Content-Disposition headers
@@ -221,6 +221,7 @@ def convert_to_pdf_v2():
     html = data.get('html')
     filename = data.get('filename', 'converted')
     power = data.get('power', 4)
+    resolution = data.get('resolution', 300)
 
     if not html:
         return jsonify({'error': 'No HTML data provided'}), 400
@@ -234,7 +235,7 @@ def convert_to_pdf_v2():
         pdf = create_pdf(html)
 
         # Compress the PDF
-        pdf = compress_pdf(pdf, power=power)
+        pdf = compress_pdf(pdf, power=power, resolution=resolution)
 
         # Create a response with the compressed PDF data
         response = make_response(pdf)
