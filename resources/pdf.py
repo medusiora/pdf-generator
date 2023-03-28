@@ -2,6 +2,7 @@ import os
 import re
 import shutil
 import subprocess
+import uuid
 
 import weasyprint
 from flask import Blueprint, jsonify, make_response, request
@@ -67,8 +68,12 @@ def compress_pdf(pdf: bytes, power=0) -> bytes:
 
     gs_path = get_ghostscript_path()
 
+    rand = str(uuid.uuid4())
+    temp_name = 'temp-{}.pdf'.format(rand)
+    temp_compressed_name = 'temp-compressed-{}.pdf'.format(rand)
+
     # Create a temporary file to store the PDF data
-    with open('temp.pdf', 'wb') as f:
+    with open(temp_name, 'wb') as f:
         f.write(pdf)
 
     # Compress the PDF using GhostScript
@@ -80,19 +85,49 @@ def compress_pdf(pdf: bytes, power=0) -> bytes:
         '-dNOPAUSE',
         '-dQUIET',
         '-dBATCH',
-        '-sOutputFile=temp-compressed.pdf',
-        'temp.pdf',
+        '-sOutputFile={}'.format(temp_compressed_name),
+        temp_name
     ])
 
     # Read the compressed PDF data
-    with open('temp-compressed.pdf', 'rb') as f:
+    with open(temp_compressed_name, 'rb') as f:
         compressed_pdf = f.read()
 
+    print('---------------------------------------------------------')
+    print(temp_name)
+    print(temp_compressed_name)
+    print('Compressed PDF size: {} KB'.format(len(compressed_pdf) / 1024))
+    print('Original PDF size: {} KB'.format(len(pdf) / 1024))
+    print('Compression ratio: {}%'.format(
+        100 - (len(compressed_pdf) / len(pdf) * 100)))
+
     # Delete the temporary files
-    os.remove('temp.pdf')
-    os.remove('temp-compressed.pdf')
+    os.remove(temp_name)
+    os.remove(temp_compressed_name)
 
     return compressed_pdf
+
+
+def create_pdf(html: str) -> bytes:
+    """
+    Converts HTML to PDF and returns the PDF data
+
+    Args:
+        html (str): The HTML data to be converted
+        filename (str): The filename to use for the PDF
+
+    Returns:
+        The PDF data
+    """
+    # Sanitize the HTML to prevent XSS attacks
+    html = sanitize_html(html)
+
+    # Convert the HTML to PDF
+    pdf = weasyprint.HTML(string=html).write_pdf(
+        optimize_size=('fonts', 'images'),
+    )
+
+    return pdf
 
 
 @pdf_api.route('/api/convert-to-pdf', methods=['POST'])
@@ -129,14 +164,9 @@ def convert_to_pdf():
     if not validate_filename(filename):
         return jsonify({'error': 'Invalid filename'}), 400
 
-    # Sanitize the HTML to prevent XSS attacks
-    html = sanitize_html(html)
-
     try:
         # Convert the HTML to PDF
-        pdf = weasyprint.HTML(string=html).write_pdf(
-            optimize_size=('fonts', 'images'),
-        )
+        pdf = create_pdf(html)
 
         # Create a response with the compressed PDF data
         response = make_response(pdf)
@@ -190,14 +220,9 @@ def convert_to_pdf_v2():
     if not validate_filename(filename):
         return jsonify({'error': 'Invalid filename'}), 400
 
-    # Sanitize the HTML to prevent XSS attacks
-    html = sanitize_html(html)
-
     try:
         # Convert the HTML to PDF
-        pdf = weasyprint.HTML(string=html).write_pdf(
-            optimize_size=('fonts', 'images'),
-        )
+        pdf = create_pdf(html)
 
         # Compress the PDF
         pdf = compress_pdf(pdf, power=4)
