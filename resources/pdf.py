@@ -82,6 +82,12 @@ def compress_pdf(pdf: bytes, power=0) -> bytes:
         '-sDEVICE=pdfwrite',
         '-dCompatibilityLevel=1.4',
         '-dPDFSETTINGS={}'.format(quality[power]),
+        '-dColorImageDownsampleType=/Bicubic',
+        '-dColorImageResolution=300',
+        '-dGrayImageDownsampleType=/Bicubic',
+        '-dGrayImageResolution=300',
+        '-dMonoImageDownsampleType=/Subsample',
+        '-dMonoImageResolution=300',
         '-dNOPAUSE',
         '-dQUIET',
         '-dBATCH',
@@ -96,6 +102,7 @@ def compress_pdf(pdf: bytes, power=0) -> bytes:
     print('---------------------------------------------------------')
     print(temp_name)
     print(temp_compressed_name)
+    print('Compression power: {} - {}'.format(power, quality[power]))
     print('Compressed PDF size: {} KB'.format(len(compressed_pdf) / 1024))
     print('Original PDF size: {} KB'.format(len(pdf) / 1024))
     print('Compression ratio: {}%'.format(
@@ -201,6 +208,7 @@ def convert_to_pdf_v2():
     Request data:
         html (str): The HTML data to be converted
         filename (str, optional): The filename to use for the PDF (default: "converted")
+        power (int, optional): The compression power to use (default: 4) (0: /default, 1: /prepress, 2: /printer, 3: /ebook, 4: /screen)
 
     Returns:
         A response with the compressed PDF data and the appropriate Content-Type and Content-Disposition headers
@@ -212,6 +220,7 @@ def convert_to_pdf_v2():
     data = request.get_json(silent=True)
     html = data.get('html')
     filename = data.get('filename', 'converted')
+    power = data.get('power', 4)
 
     if not html:
         return jsonify({'error': 'No HTML data provided'}), 400
@@ -225,7 +234,7 @@ def convert_to_pdf_v2():
         pdf = create_pdf(html)
 
         # Compress the PDF
-        pdf = compress_pdf(pdf, power=4)
+        pdf = compress_pdf(pdf, power=power)
 
         # Create a response with the compressed PDF data
         response = make_response(pdf)
