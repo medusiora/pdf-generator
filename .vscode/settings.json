@@ -1,4 +1,8 @@
 {
   "python.pythonPath": "venv/bin/python",
-  "python.linting.pylintPath": "venv/bin/pylint"
+  "python.linting.pylintPath": "venv/bin/pylint",
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.autopep8"
+  },
+  "python.formatting.provider": "none"
 }
