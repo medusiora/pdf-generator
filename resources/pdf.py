@@ -1,3 +1,4 @@
+import time
 import os
 import re
 import shutil
@@ -230,26 +231,39 @@ def convert_to_pdf_v2():
     if not validate_filename(filename):
         return jsonify({'error': 'Invalid filename'}), 400
 
-    try:
-        # Convert the HTML to PDF
-        pdf = create_pdf(html)
+    max_retries = 2
+    retry_count = 0
 
-        # Compress the PDF
-        pdf = compress_pdf(pdf, power=power, resolution=resolution)
+    while retry_count <= max_retries:
+        try:
+            # Convert the HTML to PDF
+            pdf = create_pdf(html)
 
-        # Create a response with the compressed PDF data
-        response = make_response(pdf)
-        response.headers['Content-Type'] = 'application/pdf'
-        response.headers['Content-Disposition'] = 'attachment; filename="{}.pdf"'.format(
-            filename)
+            # Compress the PDF
+            pdf = compress_pdf(pdf, power=power, resolution=resolution)
 
-        logger.info('Converted HTML to PDF from IP: {}'.format(
-            request.remote_addr))
+            # Create a response with the compressed PDF data
+            response = make_response(pdf)
+            response.headers['Content-Type'] = 'application/pdf'
+            response.headers['Content-Disposition'] = 'attachment; filename="{}.pdf"'.format(
+                filename)
 
-        return response
+            logger.info('Converted HTML to PDF from IP: {}'.format(
+                request.remote_addr))
 
-    except Exception as e:
-        # add ip address to log
-        logger.error('Error converting HTML to PDF from IP: {}, Reason {}'.format(
-            request.remote_addr, str(e)))
-        return jsonify({'error': 'Error converting HTML to PDF: {}'.format(str(e))}), 500
+            return response
+
+        except Exception as e:
+            if retry_count < max_retries:
+                # Retry the conversion
+                retry_count += 1
+                logger.warning(
+                    'Retrying HTML to PDF conversion (Retry {}/{}): {}'.format(retry_count, max_retries, str(e)))
+                time.sleep(1)  # Wait for a short time before retrying
+            else:
+                # If max retries reached, log the error and return an error response
+                logger.error('Error converting HTML to PDF after {} retries from IP: {}, Reason: {}'.format(
+                    max_retries, request.remote_addr, str(e)))
+                return jsonify({'error': 'Error converting HTML to PDF after {} retries: {}'.format(max_retries, str(e))}), 500
+
+    return jsonify({'error': 'Max retry count exceeded'}), 500
