@@ -210,7 +210,7 @@ def convert_to_pdf_v2():
         filename (str, optional): The filename to use for the PDF (default: "converted")
         power (int, optional): The compression power to use (default: 4) (0: /default, 1: /prepress, 2: /printer, 3: /ebook, 4: /screen)
         resolution (int, optional): The resolution to use for images (default: 300)
-        max_retries (int, optional): The maximum number of times to retry the conversion (default: 2)
+        retries (int, optional): The maximum number of times to retry the conversion (default: 0 No retries)
 
     Returns:
         A response with the compressed PDF data and the appropriate Content-Type and Content-Disposition headers
@@ -232,7 +232,7 @@ def convert_to_pdf_v2():
     if not validate_filename(filename):
         return jsonify({'error': 'Invalid filename'}), 400
 
-    max_retries = data.get('max_retries', 2)
+    max_retries = data.get('retries', 0)
     retry_count = 0
 
     while retry_count <= max_retries:
